@@ -1,6 +1,9 @@
 pub use crate::prelude::*;
 
 // (x + 2 * PADDING - KERNEL_SIZE) / STRIDE + 1
+pub const fn out_size(in_size: usize, padding: usize, kernel_size: usize, stride: usize) -> usize {
+    (in_size + 2 * padding - kernel_size) / stride + 1
+}
 
 /// Conv2D<1, 3, 3>
 #[derive(Clone, Debug, Default)]
@@ -41,24 +44,33 @@ impl<
     > Module<Tensor3D<IN_CHANNELS, IN_HEIGHT, IN_WIDTH, H>>
     for Conv2D<IN_CHANNELS, OUT_CHANNELS, KERNEL_SIZE, STRIDE, PADDING>
 where
-    [(); (IN_WIDTH + 2 * PADDING - KERNEL_SIZE) / STRIDE + 1]: Sized,
-    [(); (IN_HEIGHT + 2 * PADDING - KERNEL_SIZE) / STRIDE + 1]: Sized,
+    [(); out_size(IN_WIDTH, PADDING, KERNEL_SIZE, STRIDE)]: Sized,
+    [(); out_size(IN_HEIGHT, PADDING, KERNEL_SIZE, STRIDE)]: Sized,
     [(); IN_CHANNELS * KERNEL_SIZE * KERNEL_SIZE]: Sized,
-    [(); ((IN_HEIGHT + 2 * PADDING - KERNEL_SIZE) / STRIDE + 1)
-        * ((IN_WIDTH + 2 * PADDING - KERNEL_SIZE) / STRIDE + 1)]: Sized,
+    [(); {
+        out_size(IN_HEIGHT, PADDING, KERNEL_SIZE, STRIDE)
+            * out_size(IN_WIDTH, PADDING, KERNEL_SIZE, STRIDE)
+    }]: Sized,
 {
     type Output = Tensor3D<
         OUT_CHANNELS,
-        { (IN_HEIGHT + 2 * PADDING - KERNEL_SIZE) / STRIDE + 1 },
-        { (IN_WIDTH + 2 * PADDING - KERNEL_SIZE) / STRIDE + 1 },
+        { out_size(IN_HEIGHT, PADDING, KERNEL_SIZE, STRIDE) },
+        { out_size(IN_WIDTH, PADDING, KERNEL_SIZE, STRIDE) },
         H,
     >;
     fn forward(&self, input: Tensor3D<IN_CHANNELS, IN_HEIGHT, IN_WIDTH, H>) -> Self::Output {
         let (input, tape) = input.split_tape();
-        let col =
-            im2col::<IN_CHANNELS, IN_HEIGHT, IN_WIDTH, OUT_CHANNELS, KERNEL_SIZE, STRIDE, PADDING>(
-                input,
-            );
+        let col = im2col::<
+            IN_CHANNELS,
+            IN_HEIGHT,
+            IN_WIDTH,
+            OUT_CHANNELS,
+            { out_size(IN_HEIGHT, PADDING, KERNEL_SIZE, STRIDE) },
+            { out_size(IN_WIDTH, PADDING, KERNEL_SIZE, STRIDE) },
+            KERNEL_SIZE,
+            STRIDE,
+            PADDING,
+        >(input);
         todo!();
     }
 }
@@ -68,22 +80,17 @@ pub fn im2col<
     const IN_HEIGHT: usize,
     const IN_WIDTH: usize,
     const OUT_CHANNELS: usize,
+    const OUT_HEIGHT: usize,
+    const OUT_WIDTH: usize,
     const KERNEL_SIZE: usize,
     const STRIDE: usize,
     const PADDING: usize,
 >(
     im: Tensor3D<IN_CHANNELS, IN_HEIGHT, IN_WIDTH>,
-) -> Tensor2D<
-    { IN_CHANNELS * KERNEL_SIZE * KERNEL_SIZE },
-    {
-        ((IN_HEIGHT + 2 * PADDING - KERNEL_SIZE) / STRIDE + 1)
-            * ((IN_WIDTH + 2 * PADDING - KERNEL_SIZE) / STRIDE + 1)
-    },
->
+) -> Tensor2D<{ IN_CHANNELS * KERNEL_SIZE * KERNEL_SIZE }, { OUT_HEIGHT * OUT_WIDTH }>
 where
     [(); IN_CHANNELS * KERNEL_SIZE * KERNEL_SIZE]: Sized,
-    [(); ((IN_HEIGHT + 2 * PADDING - KERNEL_SIZE) / STRIDE + 1)
-        * ((IN_WIDTH + 2 * PADDING - KERNEL_SIZE) / STRIDE + 1)]: Sized,
+    [(); OUT_HEIGHT * OUT_WIDTH]: Sized,
 {
     todo!();
 }
