@@ -55,6 +55,7 @@
 //! ```
 
 mod activations;
+mod attention;
 mod dropout;
 mod impl_module_for_tuples;
 mod layer_norm;

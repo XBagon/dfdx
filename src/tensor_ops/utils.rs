@@ -10,7 +10,7 @@
 use crate::prelude::*;
 
 /// Moves tape from `inp` to `out`, and does `tape.add_backward_op()` with `f`
-pub(super) fn move_tape_and_add_backward_op<Inp, Out, F>(
+pub(crate) fn move_tape_and_add_backward_op<Inp, Out, F>(
     inp: Inp,
     out: Out::NoTape,
     mut f: F,
@@ -27,7 +27,7 @@ where
 }
 
 /// Moves tape from `lhs` to `out`, and does `tape.add_backward_op()` with `f`
-pub(super) fn move_tape_and_add_backward_binop<Lhs, Rhs, Out, F>(
+pub(crate) fn move_tape_and_add_backward_binop<Lhs, Rhs, Out, F>(
     lhs: Lhs,
     rhs: &Rhs,
     out: Out::NoTape,

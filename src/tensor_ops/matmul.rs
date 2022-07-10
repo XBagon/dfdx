@@ -159,6 +159,66 @@ pub fn vecmat_mul_transpose<const K: usize, const N: usize, TAPE: Tape>(
     })
 }
 
+pub fn batch_matmul<const B: usize, const M: usize, const K: usize, const N: usize, TAPE: Tape>(
+    lhs: Tensor3D<B, M, K, TAPE>,
+    rhs: &Tensor3D<B, K, N, NoneTape>,
+) -> Tensor3D<B, M, N, TAPE> {
+    let mut result: Tensor3D<B, M, N> = Tensor3D::zeros();
+    for b in 0..B {
+        mm(&lhs.data()[b], &rhs.data()[b], &mut result.mut_data()[b]);
+    }
+
+    // copy rhs data for use later when computing gradients
+    let rhs_data = rhs.data.clone();
+
+    move_tape_and_add_backward_binop(lhs, rhs, result, move |lhs, rhs, result, grads| {
+        let (lhs_grad, result_grad): (&mut [[[f32; K]; M]; B], &[[[f32; N]; M]; B]) =
+            grads.mut_and_ref(&lhs, &result);
+        for b in 0..B {
+            mm_bt(&result_grad[b], &rhs_data.as_ref()[b], &mut lhs_grad[b]);
+        }
+
+        let (rhs_grad, result_grad): (&mut [[[f32; N]; K]; B], &[[[f32; N]; M]; B]) =
+            grads.mut_and_ref(&rhs, &result);
+        for b in 0..B {
+            mm_at(&lhs.data()[b], &result_grad[b], &mut rhs_grad[b]);
+        }
+    })
+}
+
+pub fn batch_matmul_transpose<
+    const B: usize,
+    const M: usize,
+    const K: usize,
+    const N: usize,
+    TAPE: Tape,
+>(
+    lhs: Tensor3D<B, M, K, TAPE>,
+    rhs_t: &Tensor3D<B, N, K, NoneTape>,
+) -> Tensor3D<B, M, N, TAPE> {
+    let mut result = Tensor3D::zeros();
+    for b in 0..B {
+        mm_bt(&lhs.data()[b], &rhs_t.data()[b], &mut result.mut_data()[b]);
+    }
+
+    // copy rhs data for use later when computing gradients
+    let rhs_data = rhs_t.data.clone();
+
+    move_tape_and_add_backward_binop(lhs, rhs_t, result, move |lhs, rhs, result, grads| {
+        let (lhs_grad, result_grad): (&mut [[[f32; K]; M]; B], &[[[f32; N]; M]; B]) =
+            grads.mut_and_ref(&lhs, &result);
+        for b in 0..B {
+            mm(&result_grad[b], &rhs_data.as_ref()[b], &mut lhs_grad[b]);
+        }
+
+        let (rhs_t_grad, result_grad): (&mut [[[f32; K]; N]; B], &[[[f32; N]; M]; B]) =
+            grads.mut_and_ref(&rhs, &result);
+        for b in 0..B {
+            mm_atct(&lhs.data()[b], &result_grad[b], &mut rhs_t_grad[b]);
+        }
+    })
+}
+
 /// matrix multiply `c += a * b`
 fn mm<const M: usize, const K: usize, const N: usize>(
     a: &[[f32; K]; M],
