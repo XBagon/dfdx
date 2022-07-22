@@ -91,6 +91,8 @@
 //! opt.update(&mut model, gradients);
 //! ```
 
+#![feature(generic_const_exprs)]
+
 pub mod arrays;
 pub mod data;
 pub mod devices;

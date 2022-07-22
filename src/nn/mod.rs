@@ -55,12 +55,14 @@
 //! ```
 
 mod activations;
+mod concat;
 mod dropout;
 mod impl_module_for_tuples;
 mod layer_norm;
 mod linear;
 mod module;
 mod npz;
+mod recurrent;
 mod repeated;
 mod residual;
 mod split_into;
